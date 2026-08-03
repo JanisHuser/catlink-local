@@ -9,7 +9,8 @@ from catlink_local.devices.litterbox import LitterBoxHandler  # noqa: E402
 from catlink_local.protocol import Frame  # noqa: E402
 
 IDLE = "fc0028e39d3494549db98e02010203093494549db98e0500000101000001001c460004016400000000000062"
-WORKING = "fc0028e39d3494549db98e02010203093494549db98e0500010101000001001c450004016400000000000060"
+WORKING = "fc0028e39d3494549db98e02010203093494549db98e0500010101000001001c430004016400000000000066"
+HB_REPLY = "fc001700013494549db98e010102ffff3494549db98e080000001c"
 FEEDER_STATUS = "fc00232700ac0bfbdeff0b03010352000214000000000001000100000208000a0c000a01005060"
 
 
@@ -32,15 +33,17 @@ def test_claims_scooper_heartbeat():
 def test_heartbeat_idle():
     h = _decode(IDLE)
     assert h.state["working"] is False
+    assert h.state["temperature"] == 28  # 0x1c
+    assert h.state["humidity"] == 70  # 0x46
     assert h.state["battery_percent"] == 100
-    assert h.state["level"] == 70
     assert h.sub_type == "scooper"
 
 
 def test_heartbeat_working():
     h = _decode(WORKING)
     assert h.state["working"] is True
-    assert h.state["level"] == 69
+    assert h.state["temperature"] == 28
+    assert h.state["humidity"] == 67  # 0x43
 
 
 def test_does_not_claim_feeder():
@@ -48,11 +51,13 @@ def test_does_not_claim_feeder():
     assert LitterBoxHandler.claim(frame) is False
 
 
-def test_local_mode_is_silent():
-    # No confirmed replies yet -> on_frame must not fabricate frames.
+def test_local_mode_keepalive_reply():
+    # A heartbeat must be answered with the cloud's exact ack (verified frame).
     h = _decode(IDLE)
     frame, _ = Frame.parse(bytes.fromhex(IDLE))
-    assert h.on_frame(frame) == []
+    replies = h.on_frame(frame)
+    assert len(replies) == 1
+    assert replies[0].hex() == HB_REPLY
 
 
 if __name__ == "__main__":

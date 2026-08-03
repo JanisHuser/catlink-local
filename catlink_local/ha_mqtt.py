@@ -178,6 +178,34 @@ def _litterbox_entities(mid: str, record: Any, dev: dict) -> list[tuple[str, dic
             },
         ),
         (
+            f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/temperature/config",
+            {
+                "name": "Temperature",
+                "unique_id": f"catlink_{mid}_temperature",
+                "state_topic": st,
+                "value_template": "{{ value_json.temperature }}",
+                "unit_of_measurement": "°C",
+                "device_class": "temperature",
+                "state_class": "measurement",
+                "availability_topic": av,
+                "device": dev,
+            },
+        ),
+        (
+            f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/humidity/config",
+            {
+                "name": "Humidity",
+                "unique_id": f"catlink_{mid}_humidity",
+                "state_topic": st,
+                "value_template": "{{ value_json.humidity }}",
+                "unit_of_measurement": "%",
+                "device_class": "humidity",
+                "state_class": "measurement",
+                "availability_topic": av,
+                "device": dev,
+            },
+        ),
+        (
             f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/battery/config",
             {
                 "name": "Battery",
@@ -215,8 +243,9 @@ def state_payload(record: Any) -> dict[str, Any]:
         "last_feed_portions": state.get("last_feed_portions"),
         # litterbox
         "working": bool(state.get("working")),
+        "temperature": state.get("temperature"),
+        "humidity": state.get("humidity"),
         "battery_percent": state.get("battery_percent"),
-        "level": state.get("level"),
         # common
         "device_type": record.device_type,
         "sub_type": record.sub_type,

@@ -1,7 +1,7 @@
 """Logging MITM proxy for reverse-engineering CATLINK devices.
 
 An improved version of the original ``test-server.py``: it forwards every
-device on port 8992 to the real cloud (so the device keeps working) and writes
+device on port 9992 to the real cloud (so the device keeps working) and writes
 a **separate, timestamped capture file per client IP** in the same format as
 ``dump.txt``.  Point a new device's DNS here, let it run for a while, and hand
 the resulting ``capture-<ip>.txt`` to whoever is writing the device handler.
@@ -21,7 +21,7 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
-CLOUD = ("47.90.202.93", 8992)  # do NOT let this resolve through your own DNS
+CLOUD = ("47.90.202.93", 9992)  # do NOT let this resolve through your own DNS
 
 
 class Capture:
