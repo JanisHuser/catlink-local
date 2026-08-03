@@ -1,0 +1,24 @@
+[project]
+name = "catlink-local"
+version = "0.1.0"
+description = "Local, cloud-free server + dashboard for CATLINK devices"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []  # standard library only, on purpose
+
+[project.optional-dependencies]
+# Only needed for the Home Assistant MQTT bridge (python -m catlink_local --mqtt).
+mqtt = ["paho-mqtt>=1.6,<3"]
+
+[project.scripts]
+catlink-local = "catlink_local.__main__:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["catlink_local", "catlink_local.devices", "catlink_local.dashboard"]
+
+[tool.setuptools.package-data]
+"catlink_local.dashboard" = ["index.html"]

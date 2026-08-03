@@ -1,0 +1,55 @@
+# Home Assistant add-on manifest.
+# Copy this whole folder into your HA /addons/ dir (via the Samba or SSH
+# add-on), then Settings -> Add-ons -> reload -> "CATLINK Local".
+name: CATLINK Local
+version: "0.1.0"
+slug: catlink_local
+description: >-
+  Local DNS redirect + cloud proxy for CATLINK devices, exposed to Home
+  Assistant over MQTT. The vendor app keeps working; HA gets live sensors
+  (food in bowl, feeding) and a feed button.
+url: https://github.com/your/catlink-local
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - armhf
+  - i386
+init: false
+startup: application
+boot: auto
+# host networking so the DNS server can own port 53, the device can reach the
+# add-on directly, and we see the real per-device source IPs (per-IP capture).
+host_network: true
+services:
+  - mqtt:want
+map:
+  - share:rw
+options:
+  mode: proxy
+  cloud_ip: "47.90.202.93"
+  cloud_port: 8992
+  device_port: 8992
+  dns_port: 53
+  dns_upstream: "1.1.1.1"
+  catlink_domains:
+    - catlinks.cn
+  redirect_ip: ""
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_user: ""
+  mqtt_pass: ""
+schema:
+  mode: list(proxy|local)
+  cloud_ip: str
+  cloud_port: port
+  device_port: port
+  dns_port: port
+  dns_upstream: str
+  catlink_domains:
+    - str
+  redirect_ip: str?
+  mqtt_host: str?
+  mqtt_port: port
+  mqtt_user: str?
+  mqtt_pass: password?
