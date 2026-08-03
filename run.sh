@@ -3,9 +3,7 @@
 set -e
 
 MODE=$(bashio::config 'mode')
-CLOUD_IP=$(bashio::config 'cloud_ip')
-CLOUD_PORT=$(bashio::config 'cloud_port')
-DEVICE_PORT=$(bashio::config 'device_port')
+RESOLVER=$(bashio::config 'resolver')
 DNS_PORT=$(bashio::config 'dns_port')
 DNS_UPSTREAM=$(bashio::config 'dns_upstream')
 REDIRECT_IP=$(bashio::config 'redirect_ip')
@@ -15,7 +13,7 @@ REDIRECT_IP=$(bashio::config 'redirect_ip')
 if bashio::var.is_empty "${REDIRECT_IP}"; then
   REDIRECT_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
 fi
-bashio::log.info "Redirecting *.catlinks.cn -> ${REDIRECT_IP} (device port ${DEVICE_PORT})"
+bashio::log.info "Redirecting *.catlinks.cn -> ${REDIRECT_IP}"
 
 # MQTT: use the Mosquitto add-on service if present, else the options.
 if bashio::services.available "mqtt"; then
@@ -52,18 +50,23 @@ DNSMASQ_CONF=/tmp/dnsmasq.conf
 
 dnsmasq --keep-in-foreground --conf-file="${DNSMASQ_CONF}" &
 
-PROXY_ARGS=""
-if [ "${MODE}" = "proxy" ]; then
-  PROXY_ARGS="--proxy ${CLOUD_IP}:${CLOUD_PORT}"
-  bashio::log.info "Proxy mode: forwarding to cloud ${CLOUD_IP}:${CLOUD_PORT} (app keeps working)"
-else
-  bashio::log.info "Local mode: cloud replaced (app will not work)"
-fi
+# One --endpoint per configured entry.  In proxy mode each has an upstream; in
+# local mode we only take the listen port (before the first ":").
+ENDPOINT_ARGS=""
+for ep in $(bashio::config 'endpoints'); do
+  if [ "${MODE}" = "proxy" ]; then
+    ENDPOINT_ARGS="${ENDPOINT_ARGS} --endpoint ${ep}"
+    bashio::log.info "Proxy endpoint ${ep}"
+  else
+    ENDPOINT_ARGS="${ENDPOINT_ARGS} --port ${ep%%:*}"
+    bashio::log.info "Local endpoint :${ep%%:*}"
+  fi
+done
 
 exec python3 -m catlink_local \
-  ${PROXY_ARGS} \
+  ${ENDPOINT_ARGS} \
+  --resolver "${RESOLVER}" \
   --host 0.0.0.0 \
-  --port "${DEVICE_PORT}" \
   --mqtt \
   --mqtt-host "${MQTT_HOST}" --mqtt-port "${MQTT_PORT}" \
   --mqtt-user "${MQTT_USER}" --mqtt-pass "${MQTT_PASS}" \

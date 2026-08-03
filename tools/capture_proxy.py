@@ -81,7 +81,7 @@ async def main(host: str, port: int, out_dir: Path):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--host", default="0.0.0.0")
-    ap.add_argument("--port", type=int, default=8992)
+    ap.add_argument("--port", type=int, default=9992)
     ap.add_argument("--out", type=Path, default=Path("captures"))
     args = ap.parse_args()
     try:

@@ -14,14 +14,44 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 
-from . import registry
+from . import registry, resolve
 from .hub import Hub
 from .protocol import Frame, iter_frames
 
 log = logging.getLogger("catlink.proxy")
 
 CLOUD = ("47.90.202.93", 8992)
+
+
+@dataclass(frozen=True)
+class Endpoint:
+    """A listen port and where its traffic is forwarded.
+
+    Different CATLINK device types use different endpoints (e.g. the feeder on
+    8992 and the scooper on 9992), so the proxy runs one listener per endpoint
+    and forwards each to its own upstream.  ``upstream_host`` may be an IP or a
+    hostname; hostnames are resolved through a clean resolver so we reach the
+    real cloud instead of looping back through our own poisoned DNS.
+    """
+
+    listen_port: int
+    upstream_host: str
+    upstream_port: int
+
+    @classmethod
+    def parse(cls, spec: str) -> "Endpoint":
+        """``"LISTEN:UPHOST:UPPORT"`` | ``"LISTEN:UPHOST"`` | ``"LISTEN"``.
+
+        A bare ``LISTEN`` proxies to the default cloud host on that same port.
+        """
+        parts = spec.split(":")
+        if len(parts) == 1:
+            return cls(int(parts[0]), CLOUD[0], int(parts[0]))
+        if len(parts) == 2:
+            return cls(int(parts[0]), parts[1], int(parts[0]))
+        return cls(int(parts[0]), parts[1], int(parts[2]))
 
 
 class ProxySession:
@@ -121,16 +151,24 @@ async def _pump(src: asyncio.StreamReader, dst: asyncio.StreamWriter, direction:
 
 async def handle_proxy_connection(
     hub: Hub,
-    upstream: tuple[str, int],
+    endpoint: Endpoint,
+    resolver: str,
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
 ) -> None:
     session = ProxySession(hub, writer)
-    log.info("device %s connected (proxy -> %s:%s)", session.addr, *upstream)
+    upstream_ip = await resolve.resolve(endpoint.upstream_host, server=resolver)
+    log.info(
+        "device %s connected on :%d (proxy -> %s[%s]:%d)",
+        session.addr, endpoint.listen_port, endpoint.upstream_host, upstream_ip, endpoint.upstream_port,
+    )
     try:
-        up_reader, up_writer = await asyncio.open_connection(*upstream)
+        up_reader, up_writer = await asyncio.open_connection(upstream_ip, endpoint.upstream_port)
     except OSError as exc:
-        log.error("cannot reach cloud %s:%s: %s", upstream[0], upstream[1], exc)
+        log.error(
+            "cannot reach cloud %s:%d for :%d: %s",
+            endpoint.upstream_host, endpoint.upstream_port, endpoint.listen_port, exc,
+        )
         writer.close()
         return
     await asyncio.gather(
@@ -142,10 +180,29 @@ async def handle_proxy_connection(
     log.info("device %s disconnected (proxy)", session.addr)
 
 
+async def start_proxy_endpoints(
+    hub: Hub,
+    endpoints: list[Endpoint],
+    host: str = "0.0.0.0",
+    resolver: str = "1.1.1.1",
+) -> list[asyncio.base_events.Server]:
+    """Start one proxy listener per endpoint.  Returns the list of servers."""
+    servers = []
+    for ep in endpoints:
+        server = await asyncio.start_server(
+            lambda r, w, ep=ep: handle_proxy_connection(hub, ep, resolver, r, w),
+            host,
+            ep.listen_port,
+        )
+        log.info(
+            "PROXY listening on :%d -> %s:%d", ep.listen_port, ep.upstream_host, ep.upstream_port
+        )
+        servers.append(server)
+    return servers
+
+
 async def start_proxy(hub: Hub, upstream: tuple[str, int], host: str = "0.0.0.0", port: int = 8992):
-    server = await asyncio.start_server(
-        lambda r, w: handle_proxy_connection(hub, upstream, r, w), host, port
-    )
-    sock = ", ".join(str(s.getsockname()) for s in server.sockets)
-    log.info("PROXY server listening on %s -> cloud %s:%s", sock, upstream[0], upstream[1])
-    return server
+    """Back-compat single-endpoint helper (used by older callers and tests)."""
+    ep = Endpoint(port, upstream[0], upstream[1])
+    servers = await start_proxy_endpoints(hub, [ep], host)
+    return servers[0]

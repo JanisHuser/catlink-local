@@ -44,13 +44,25 @@ individually (in your router's client settings) to the HA IP.
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `mode` | `proxy` | `proxy` (app keeps working) or `local` (fully offline, app stops working). |
-| `cloud_ip` / `cloud_port` | `47.90.202.93` / `8992` | Real CATLINK cloud to proxy to. Must be an **IP** (avoids a DNS loop). |
-| `device_port` | `8992` | Port devices connect on. |
+| `endpoints` | `8992→…:8992`, `9992→…:9992` | One entry per device type/port, `"LISTEN:UPSTREAM_HOST:UPSTREAM_PORT"`. The feeder uses 8992, the scooper 9992. `UPSTREAM_HOST` may be an IP or a hostname. |
+| `resolver` | `1.1.1.1` | Clean DNS used to resolve upstream **hostnames** (bypasses our own redirect so we reach the real cloud). |
 | `dns_port` | `53` | DNS listen port. |
 | `dns_upstream` | `1.1.1.1` | Where non-CATLINK lookups are forwarded. |
 | `catlink_domains` | `[catlinks.cn]` | Domains to intercept (subdomains included). |
 | `redirect_ip` | *(auto)* | The IP devices are redirected to. Auto-detected; pin it if detection is wrong. |
 | `mqtt_*` | *(from Mosquitto)* | Overrides if you don't use the Mosquitto add-on. |
+
+### Multiple devices and endpoints
+
+Each CATLINK device type connects to a **different endpoint** — the feeder on
+port 8992, the self-cleaning litter box ("scooper") on 9992 — so the add-on
+listens on all of them at once and forwards each to its own upstream. Add a line
+to `endpoints` for any new port.
+
+If a device's real upstream isn't the default cloud IP, use its hostname and let
+the resolver find the real address, e.g. `"9992:devices.catlinks.cn:9992"`. The
+add-on log (and dnsmasq's query log) shows which `*.catlinks.cn` hostname each
+device looks up, so you can see exactly what to put here.
 
 ## Captures
 
@@ -66,8 +78,12 @@ litter box. Grab it via the Samba share.
   DNS service.
 - **No entities in HA.** Confirm the Mosquitto add-on is running and the MQTT
   integration is set up. The add-on log shows `MQTT connected`.
-- **App stopped working.** Make sure `mode` is `proxy`, and `cloud_ip` is the
-  real cloud IP (not a hostname that resolves back through this DNS).
+- **App stopped working.** Make sure `mode` is `proxy`, and each `endpoints`
+  upstream points at the real cloud (an IP, or a hostname the `resolver` can
+  resolve — not one that loops back through this DNS).
+- **One device works, another doesn't.** It likely uses a different port; add an
+  `endpoints` line for it (the scooper is 9992). Check the add-on log for the
+  device connecting and which upstream it was sent to.
 - **Wrong redirect IP.** Set `redirect_ip` to this HA box's LAN IP explicitly.
 - **Multiple devices share one capture file.** They'd only collide if they share
   a source IP; with host networking each device's real IP is used.

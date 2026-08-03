@@ -2,7 +2,7 @@
 # Installed via the Add-on Store after adding this repo as a custom repository
 # (Settings -> Add-ons -> Add-on Store -> ⋮ -> Repositories).
 name: CATLINK Local
-version: "0.1.1"
+version: "0.2.0"
 slug: catlink_local
 description: >-
   Local DNS redirect + cloud proxy for CATLINK devices, exposed to Home
@@ -27,9 +27,13 @@ map:
   - share:rw
 options:
   mode: proxy
-  cloud_ip: "47.90.202.93"
-  cloud_port: 8992
-  device_port: 8992
+  # One entry per device type / port. Format: "LISTEN:UPSTREAM_HOST:UPSTREAM_PORT".
+  # UPSTREAM_HOST may be an IP or a hostname (resolved via `resolver`, bypassing
+  # the DNS redirect). The feeder uses 8992, the scooper uses 9992.
+  endpoints:
+    - "8992:47.90.202.93:8992"
+    - "9992:47.90.202.93:9992"
+  resolver: "1.1.1.1"
   dns_port: 53
   dns_upstream: "1.1.1.1"
   catlink_domains:
@@ -41,9 +45,9 @@ options:
   mqtt_pass: ""
 schema:
   mode: list(proxy|local)
-  cloud_ip: str
-  cloud_port: port
-  device_port: port
+  endpoints:
+    - str
+  resolver: str
   dns_port: port
   dns_upstream: str
   catlink_domains:

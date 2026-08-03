@@ -159,12 +159,49 @@ def _generic_entities(mid: str, record: Any, dev: dict) -> list[tuple[str, dict]
     ]
 
 
+def _litterbox_entities(mid: str, record: Any, dev: dict) -> list[tuple[str, dict]]:
+    st = state_topic(mid)
+    av = availability_topic(mid)
+    return [
+        (
+            f"{DISCOVERY_PREFIX}/binary_sensor/catlink_{mid}/working/config",
+            {
+                "name": "Working",
+                "unique_id": f"catlink_{mid}_working",
+                "state_topic": st,
+                "value_template": "{{ 'ON' if value_json.working else 'OFF' }}",
+                "payload_on": "ON",
+                "payload_off": "OFF",
+                "device_class": "running",
+                "availability_topic": av,
+                "device": dev,
+            },
+        ),
+        (
+            f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/battery/config",
+            {
+                "name": "Battery",
+                "unique_id": f"catlink_{mid}_battery",
+                "state_topic": st,
+                "value_template": "{{ value_json.battery_percent }}",
+                "unit_of_measurement": "%",
+                "device_class": "battery",
+                "state_class": "measurement",
+                "availability_topic": av,
+                "device": dev,
+            },
+        ),
+    ]
+
+
 def discovery_for(record: Any) -> list[tuple[str, dict]]:
     """Return (config_topic, payload) pairs to advertise a device to HA."""
     mid = macid(record.mac)
     dev = _device_block(mid, record)
     if record.device_type == "feeder":
         return _feeder_entities(mid, record, dev)
+    if record.device_type == "litterbox":
+        return _litterbox_entities(mid, record, dev)
     return _generic_entities(mid, record, dev)
 
 
@@ -172,9 +209,15 @@ def state_payload(record: Any) -> dict[str, Any]:
     """The value_json a device publishes to its state topic."""
     state = getattr(record.handler, "state", {}) if record.handler else {}
     payload: dict[str, Any] = {
+        # feeder
         "bowl_grams": state.get("bowl_grams"),
         "active": bool(state.get("active")),
         "last_feed_portions": state.get("last_feed_portions"),
+        # litterbox
+        "working": bool(state.get("working")),
+        "battery_percent": state.get("battery_percent"),
+        "level": state.get("level"),
+        # common
         "device_type": record.device_type,
         "sub_type": record.sub_type,
     }
