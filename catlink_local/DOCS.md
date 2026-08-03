@@ -25,9 +25,9 @@ your devices to Home Assistant as native entities over MQTT. In the default
 
 ## Install
 
-1. Copy this folder into your HA `/addons/` directory (use the **Samba share**
-   or **SSH** add-on). You should end up with `/addons/catlink-local/config.yaml`.
-2. Settings → Add-ons → **⋮ → Reload**, then open **CATLINK Local** and install.
+1. Settings → Add-ons → Add-on Store → **⋮ → Repositories**, add
+   `https://github.com/JanisHuser/catlink-local`.
+2. Find **CATLINK Local** in the store and **Install**.
 3. Start it. Check the **Log** tab — it prints the redirect IP and the
    intercepted domains.
 

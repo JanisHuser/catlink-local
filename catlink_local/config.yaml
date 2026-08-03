@@ -1,6 +1,6 @@
 # Home Assistant add-on manifest.
-# Copy this whole folder into your HA /addons/ dir (via the Samba or SSH
-# add-on), then Settings -> Add-ons -> reload -> "CATLINK Local".
+# Installed via the Add-on Store after adding this repo as a custom repository
+# (Settings -> Add-ons -> Add-on Store -> ⋮ -> Repositories).
 name: CATLINK Local
 version: "0.1.0"
 slug: catlink_local
@@ -8,7 +8,7 @@ description: >-
   Local DNS redirect + cloud proxy for CATLINK devices, exposed to Home
   Assistant over MQTT. The vendor app keeps working; HA gets live sensors
   (food in bowl, feeding) and a feed button.
-url: https://github.com/your/catlink-local
+url: https://github.com/JanisHuser/catlink-local/tree/main/catlink_local
 arch:
   - aarch64
   - amd64
