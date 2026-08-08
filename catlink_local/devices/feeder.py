@@ -52,6 +52,10 @@ def _sub_type_for(frame: Frame) -> str:
 class FeederHandler(DeviceHandler):
     device_type = "feeder"
 
+    # Commands we decode/answer; anything else the feeder sends is captured as
+    # "unhandled" (both directions reuse these ids for report+ack).
+    known_commands = frozenset({CMD_STATUS, CMD_TIME, CMD_FEED, CMD_FEED_REPORT})
+
     commands = [
         Command("feed", "Feed", args={"portions": "int"}),
         Command("sync_time", "Sync time", args={}),

@@ -47,6 +47,14 @@ class DeviceHandler:
     #: Commands this handler exposes.  Subclasses override.
     commands: list[Command] = []
 
+    #: Frame ``command`` ids this handler actually decodes/handles.  Any frame
+    #: whose command is outside this set is logged as "unhandled" for reverse
+    #: engineering, *even on this otherwise-recognised device* -- that's how a
+    #: new firmware command or a not-yet-implemented feature (e.g. the scooper's
+    #: grid report) surfaces instead of being silently dropped.  Leave empty to
+    #: opt out (the generic fallback already captures everything it sees).
+    known_commands: frozenset[int] = frozenset()
+
     def __init__(self, session: "Session"):
         self.session = session
         self.sub_type: str = "unknown"
@@ -58,6 +66,11 @@ class DeviceHandler:
     def claim(cls, frame: Frame) -> bool:
         """Return True if this handler should own the device that sent ``frame``."""
         return False
+
+    def is_unhandled(self, frame: Frame) -> bool:
+        """True when this handler doesn't decode ``frame`` and it should be
+        captured.  Only meaningful once ``known_commands`` is declared."""
+        return bool(self.known_commands) and frame.command not in self.known_commands
 
     # -- traffic ----------------------------------------------------------
     def on_frame(self, frame: Frame) -> list[bytes]:

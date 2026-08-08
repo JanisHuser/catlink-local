@@ -71,6 +71,12 @@ Traffic from **unrecognised** devices is written to
 `dump.txt`). That's what you use to build a handler for a new device — e.g. the
 litter box. Grab it via the Samba share.
 
+Recognised devices are quieter, but any command their handler doesn't decode
+yet (new firmware messages, not-yet-implemented features like the scooper's
+`28ff` grid report) is still captured — to
+`/share/catlink-captures/unhandled-<device_type>-<ip>.txt`. Check there when a
+supported device does something the dashboard doesn't reflect.
+
 ## Troubleshooting
 
 - **Add-on won't start / port 53 in use.** Something else on the host owns DNS.

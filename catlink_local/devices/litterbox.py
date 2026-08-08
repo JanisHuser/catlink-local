@@ -45,6 +45,11 @@ SUB_MAIN = 0x01
 class LitterBoxHandler(DeviceHandler):
     device_type = "litterbox"
 
+    # Commands we decode/answer.  CMD_GRID (0x28ff) is intentionally *excluded*:
+    # the 1 KB grid report isn't decoded yet, so it gets logged as "unhandled"
+    # for reverse engineering instead of being silently dropped.
+    known_commands = frozenset({CMD_PING, CMD_HEARTBEAT, CMD_HEARTBEAT_ACK, CMD_POLL})
+
     @classmethod
     def claim(cls, frame: Frame) -> bool:
         return frame.command in (CMD_PING, CMD_HEARTBEAT, CMD_GRID) or frame.subsystem == SUB_SCOOPER

@@ -78,6 +78,16 @@ The dashboard's **Live traffic** panel is deliberately scoped to unidentified
 devices only — recognised devices (the feeder) are kept online but their
 chatter is hidden, so the log stays focused on what still needs decoding.
 
+### Capture of unhandled frames on recognised devices
+
+Recognition isn't all-or-nothing: a handler only decodes the commands it
+declares in `known_commands`. Any *other* command a recognised device sends —
+new firmware chatter, or a feature that isn't implemented yet (e.g. the
+scooper's undecoded `28ff` grid report) — is auto-logged to
+`captures/unhandled-<device_type>-<ip>.txt` instead of being silently dropped.
+So the same reverse-engineering loop applies to filling in gaps on a device
+that's already partially supported, not just brand-new hardware.
+
 That capture is everything needed to write a real handler for it — so bringing
 a new device (e.g. the litter box at `.105`) online is:
 

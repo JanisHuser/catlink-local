@@ -81,6 +81,9 @@ class Session:
                 self.record.capture_path = path
             # Only unidentified-device traffic goes to the live log.
             self.hub.log_packet("in", self.mac_str, frame)
+        elif self.handler is not None and self.handler.is_unhandled(frame):
+            # Recognised device, but a command this handler doesn't implement.
+            self.hub.capture_unhandled(self.ip, self.handler.device_type, "C→S", frame.encode())
         if self.handler is None:
             return
         try:

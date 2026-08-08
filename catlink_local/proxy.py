@@ -117,6 +117,9 @@ class ProxySession:
                 self.record.capture_path = path
             # Live log stays scoped to unidentified devices, both directions.
             self.hub.log_packet("in" if direction == "C→S" else "out", self.mac_str, frame)
+        elif self.handler is not None and self.handler.is_unhandled(frame):
+            # Recognised device, but a command this handler doesn't implement.
+            self.hub.capture_unhandled(self.ip, self.handler.device_type, direction, raw)
 
         if self.handler is not None:
             try:

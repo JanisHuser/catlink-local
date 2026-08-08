@@ -77,26 +77,48 @@ class Hub:
         self._capture_fp.write(self._frame_block(direction, raw))
         self._capture_fp.flush()
 
+    def _append_capture(self, name: str, header: str, direction: str, raw: bytes) -> str | None:
+        """Append a frame to ``<capture_dir>/<name>.txt``, opening it (with a
+        one-line ``header``) the first time ``name`` is seen.  Returns the path.
+        """
+        if self.capture_dir is None:
+            return None
+        path = self.capture_dir / f"{name}.txt"
+        fp = self._unknown_fps.get(name)
+        if fp is None:
+            self.capture_dir.mkdir(parents=True, exist_ok=True)
+            fp = path.open("a", buffering=1)
+            fp.write(f"# {header} — capture started {datetime.now().isoformat()}\n\n")
+            self._unknown_fps[name] = fp
+            log.info("capturing -> %s", path)
+            self.publish("capture_started", {"name": name, "path": str(path)})
+        fp.write(self._frame_block(direction, raw))
+        fp.flush()
+        return str(path)
+
     def capture_unknown(self, ip: str, direction: str, raw: bytes) -> str | None:
         """Auto-log traffic from an unidentified device to ``unknown-<ip>.txt``.
 
         Returns the capture file path (so the device card can show it).  A new
         file is opened the first time an IP is seen.
         """
-        if self.capture_dir is None:
-            return None
-        fp = self._unknown_fps.get(ip)
-        if fp is None:
-            self.capture_dir.mkdir(parents=True, exist_ok=True)
-            path = self.capture_dir / f"unknown-{ip}.txt"
-            fp = path.open("a", buffering=1)
-            fp.write(f"# unidentified device {ip} — capture started {datetime.now().isoformat()}\n\n")
-            self._unknown_fps[ip] = fp
-            log.info("logging unknown device %s -> %s", ip, path)
-            self.publish("capture_started", {"ip": ip, "path": str(path)})
-        fp.write(self._frame_block(direction, raw))
-        fp.flush()
-        return str(self.capture_dir / f"unknown-{ip}.txt")
+        return self._append_capture(
+            f"unknown-{ip}", f"unidentified device {ip}", direction, raw
+        )
+
+    def capture_unhandled(self, ip: str, device_type: str, direction: str, raw: bytes) -> str | None:
+        """Log a frame a *recognised* device sent that its handler doesn't decode.
+
+        Written to ``unhandled-<device_type>-<ip>.txt`` so not-yet-implemented
+        commands (new firmware, undecoded reports) are kept for reverse
+        engineering without polluting the unidentified-device captures.
+        """
+        return self._append_capture(
+            f"unhandled-{device_type}-{ip}",
+            f"unhandled frames from {device_type} {ip}",
+            direction,
+            raw,
+        )
 
     def close(self) -> None:
         for fp in self._unknown_fps.values():
