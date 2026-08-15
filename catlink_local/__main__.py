@@ -40,7 +40,7 @@ async def _run(
         hub.open_capture(open(capture, "a", buffering=1))
         print(f"  capturing ALL traffic -> {capture}")
     if capture_dir is not None:
-        print(f"  auto-logging unknown devices -> {capture_dir.resolve()}/unknown-<ip>.txt")
+        print(f"  auto-logging device traffic -> {capture_dir.resolve()}/(unknown|traffic|unhandled)-<ip>.txt")
 
     servers = []
     if endpoints is not None:
@@ -88,7 +88,7 @@ def main() -> None:
     ap.add_argument("--capture", metavar="FILE", help="append ALL traffic to FILE (dump.txt format)")
     ap.add_argument(
         "--capture-dir", metavar="DIR", default="captures",
-        help="per-IP folder for unidentified-device logs (default: ./captures)",
+        help="per-device capture folder: unknown-/traffic-/unhandled-<ip>.txt (default: ./captures)",
     )
     ap.add_argument(
         "--no-capture-unknown", action="store_true",

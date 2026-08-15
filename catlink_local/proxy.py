@@ -76,6 +76,9 @@ class ProxySession:
         self.hub.write_capture("S→C", raw)
         if self.is_unknown:
             self.hub.capture_unknown(self.ip, "S→C", raw)
+        elif self.handler is not None:
+            # Our own injected commands are part of the conversation too.
+            self.hub.capture_device(self.ip, self.handler.device_type, "S→C", raw)
         if self.record is not None:
             self.record.packets_out += 1
             frame, _ = Frame.parse(raw)
@@ -101,6 +104,11 @@ class ProxySession:
     def observe(self, direction: str, frame: Frame) -> None:
         if direction == "C→S" and (self.record is None or not self.mac):
             self._identify(frame)
+        # Always feed the global --capture dump, even for S→C frames that arrive
+        # before the device has identified itself (identification only happens on
+        # C→S, so those would otherwise be lost).
+        raw = frame.encode()
+        self.hub.write_capture(direction, raw)
         if self.record is None:
             return
         if direction == "C→S":
@@ -109,17 +117,22 @@ class ProxySession:
             self.record.packets_out += 1
         self.hub.touch(self.record)
 
-        raw = frame.encode()
-        self.hub.write_capture(direction, raw)
         if self.is_unknown:
             path = self.hub.capture_unknown(self.ip, direction, raw)
             if path and self.record.capture_path != path:
                 self.record.capture_path = path
             # Live log stays scoped to unidentified devices, both directions.
             self.hub.log_packet("in" if direction == "C→S" else "out", self.mac_str, frame)
-        elif self.handler is not None and self.handler.is_unhandled(frame):
-            # Recognised device, but a command this handler doesn't implement.
-            self.hub.capture_unhandled(self.ip, self.handler.device_type, direction, raw)
+        elif self.handler is not None:
+            # Recognised device: keep the *full* app<->device conversation, both
+            # directions, so app-originated commands are visible even for
+            # commands we already implement.
+            path = self.hub.capture_device(self.ip, self.handler.device_type, direction, raw)
+            if path and self.record.capture_path != path:
+                self.record.capture_path = path
+            # Undecoded commands additionally land in the focused unhandled log.
+            if self.handler.is_unhandled(frame):
+                self.hub.capture_unhandled(self.ip, self.handler.device_type, direction, raw)
 
         if self.handler is not None:
             try:

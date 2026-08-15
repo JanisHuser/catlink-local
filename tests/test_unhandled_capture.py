@@ -46,6 +46,24 @@ def test_hub_writes_unhandled_file(tmp_path):
     assert raw.hex() in text
 
 
+def test_hub_writes_full_device_conversation(tmp_path):
+    # Both directions of a recognised device -- including handled commands and
+    # app->device (S→C) frames -- land in one traffic-<type>-<ip>.txt file.
+    hub = Hub(capture_dir=tmp_path)
+    down = bytes.fromhex("fc001b000100163e022c1201500dffff3494549db98e051a080f0607210430")  # S→C app command
+    up = _grid_frame().encode()  # C→S device frame
+    path = hub.capture_device("192.168.1.7", "litterbox", "S→C", down)
+    hub.capture_device("192.168.1.7", "litterbox", "C→S", up)
+    hub.close()
+
+    expected = tmp_path / "traffic-litterbox-192.168.1.7.txt"
+    assert path == str(expected)
+    text = expected.read_text()
+    assert "all frames for litterbox" in text
+    assert down.hex() in text and up.hex() in text
+    assert "S→C" in text and "C→S" in text
+
+
 if __name__ == "__main__":
     import tempfile
     from pathlib import Path

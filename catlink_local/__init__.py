@@ -1,3 +1,3 @@
 """catlink_local -- a local, cloud-free server for CATLINK devices."""
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"

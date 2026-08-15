@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.3
+
+- Capture the **full conversation of recognised devices**, both directions, to
+  `captures/traffic-<device_type>-<ip>.txt`. Previously only *unidentified*
+  devices were logged in full while recognised ones logged just their undecoded
+  commands, so **app→device** traffic (a button pressed in the CATLINK app,
+  relayed cloud→device) never showed up in the capture folder. The focused
+  `unhandled-*` log stays as-is. Also: S→C frames arriving before a device
+  identifies itself are no longer dropped from the `--capture` dump.
+
 ## 0.3.2
 
 - Decode more previously-unhandled frames captured from real devices:

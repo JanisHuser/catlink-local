@@ -41,6 +41,8 @@ class Session:
         self.hub.write_capture("S→C", raw)
         if self.is_unknown:
             self.hub.capture_unknown(self.ip, "S→C", raw)
+        elif self.handler is not None:
+            self.hub.capture_device(self.ip, self.handler.device_type, "S→C", raw)
         if self.record is not None:
             self.record.packets_out += 1
         # The live-traffic log is only for unidentified devices (the stuff we
@@ -81,9 +83,14 @@ class Session:
                 self.record.capture_path = path
             # Only unidentified-device traffic goes to the live log.
             self.hub.log_packet("in", self.mac_str, frame)
-        elif self.handler is not None and self.handler.is_unhandled(frame):
-            # Recognised device, but a command this handler doesn't implement.
-            self.hub.capture_unhandled(self.ip, self.handler.device_type, "C→S", frame.encode())
+        elif self.handler is not None:
+            # Recognised device: keep the full conversation, and additionally
+            # file undecoded commands in the focused unhandled log.
+            path = self.hub.capture_device(self.ip, self.handler.device_type, "C→S", frame.encode())
+            if path and self.record.capture_path != path:
+                self.record.capture_path = path
+            if self.handler.is_unhandled(frame):
+                self.hub.capture_unhandled(self.ip, self.handler.device_type, "C→S", frame.encode())
         if self.handler is None:
             return
         try:

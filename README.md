@@ -80,11 +80,14 @@ chatter is hidden, so the log stays focused on what still needs decoding.
 
 ### Capture of unhandled frames on recognised devices
 
-Recognition isn't all-or-nothing: a handler only decodes the commands it
-declares in `known_commands`. Any *other* command a recognised device sends —
-new firmware chatter, or a feature that isn't implemented yet (e.g. the
-scooper's undecoded `28ff` grid report) — is auto-logged to
-`captures/unhandled-<device_type>-<ip>.txt` instead of being silently dropped.
+Recognition isn't all-or-nothing. A recognised device's **full** conversation —
+every frame, both directions, including app→device commands relayed by the
+cloud — is logged to `captures/traffic-<device_type>-<ip>.txt`, so you can see
+what the app actually sends even for commands the handler already implements.
+On top of that, any command a handler doesn't decode (it only decodes the ids in
+`known_commands` — new firmware chatter, or an unimplemented feature like the
+scooper's `28ff` grid report) is also filed to
+`captures/unhandled-<device_type>-<ip>.txt` as a focused, deduplicated list.
 So the same reverse-engineering loop applies to filling in gaps on a device
 that's already partially supported, not just brand-new hardware.
 

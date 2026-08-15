@@ -120,6 +120,22 @@ class Hub:
             raw,
         )
 
+    def capture_device(self, ip: str, device_type: str, direction: str, raw: bytes) -> str | None:
+        """Log *every* frame of a recognised device, both directions.
+
+        Written to ``traffic-<device_type>-<ip>.txt``.  Unlike the unhandled
+        capture this keeps the full app<->device conversation -- including the
+        commands the handler already implements -- so app-originated traffic
+        (e.g. a button pressed in the CATLINK app, relayed cloud->device) is
+        visible even once the device is recognised.
+        """
+        return self._append_capture(
+            f"traffic-{device_type}-{ip}",
+            f"all frames for {device_type} {ip}",
+            direction,
+            raw,
+        )
+
     def close(self) -> None:
         for fp in self._unknown_fps.values():
             try:

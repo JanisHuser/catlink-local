@@ -71,11 +71,14 @@ Traffic from **unrecognised** devices is written to
 `dump.txt`). That's what you use to build a handler for a new device — e.g. the
 litter box. Grab it via the Samba share.
 
-Recognised devices are quieter, but any command their handler doesn't decode
-yet (new firmware messages, not-yet-implemented features like the scooper's
-`28ff` grid report) is still captured — to
-`/share/catlink-captures/unhandled-<device_type>-<ip>.txt`. Check there when a
-supported device does something the dashboard doesn't reflect.
+Recognised devices are captured too. Their **full** conversation — every frame,
+both directions, including the commands the app sends (relayed cloud→device) —
+goes to `/share/catlink-captures/traffic-<device_type>-<ip>.txt`, so you can see
+exactly what a button in the CATLINK app puts on the wire. Separately, any
+command the handler doesn't decode yet (new firmware messages, not-yet-
+implemented features like the scooper's `28ff` grid report) is also filed to
+`/share/catlink-captures/unhandled-<device_type>-<ip>.txt` as a focused list.
+Check there when a supported device does something the dashboard doesn't reflect.
 
 ## Troubleshooting
 
