@@ -13,8 +13,10 @@ Device -> server:
     - body[16]      : temperature in °C   (0x1c = 28, stable across captures)
     - body[17]      : humidity in %       (0x43..0x46 = 67..70, fluctuates)
     - body[21]      : 0x64 = 100 (percentage, treated as battery/level)
-    - body[22:24]   : cat weight, grams, big-endian (unconfirmed -- all-zero in
-                      every capture so far; surfaced to verify against hardware)
+    - body[9] rising edge (0->1) is read as a *cat entered* event: we log the
+      arrival time and the weighed value.  body[22:24] (grams, big-endian) is
+      the plausible weight slot but is unconfirmed -- all-zero in every capture
+      so far (no cat was on the scale); verify against a live entry.
 * ``03 50 28ff <1024B>``    -- big grid/report (mostly zeros); not decoded yet
 
 Server -> device (from a proxy capture with both directions):
@@ -110,22 +112,29 @@ class LitterBoxHandler(DeviceHandler):
         body = frame.body
         if len(body) < 22:
             return
-        state = {
-            "working": bool(body[9]),        # clean/occupied cycle
-            "temperature": body[16],         # °C
-            "humidity": body[17],            # %
-            "battery_percent": body[21],     # 0x64 = 100 (inferred)
-            "last_status_hex": body.hex(),
-        }
-        # Cat weight.  The heartbeat has a run of trailing bytes that were all
-        # zero in every captured frame (both idle and mid-cycle, no cat on the
-        # scale), so body[22:24] read big-endian is the plausible slot for a
-        # grams weight (a 3-6 kg cat fits a 16-bit field) -- but its position is
-        # *unconfirmed*: no capture yet showed a non-zero value.  Surfaced so it
-        # can be verified against a live reading; expect 0 until then.
-        if len(body) >= 24:
-            state["weight"] = int.from_bytes(body[22:24], "big")
-        self.state.update(state)
+        was_working = bool(self.state.get("working"))
+        working = bool(body[9])           # clean/occupied cycle
+        self.state.update(
+            {
+                "working": working,
+                "temperature": body[16],  # °C
+                "humidity": body[17],     # %
+                "battery_percent": body[21],  # 0x64 = 100 (inferred)
+                "last_status_hex": body.hex(),
+            }
+        )
+        # Cat-entry event: the box logs a cat's weight and the time it entered.
+        # We take the rising edge of the occupancy flag (body[9] 0->1) as the
+        # entry and stamp the arrival time (reliable) plus the weighed value.
+        # The weight *offset* is still unconfirmed: body[22:24] big-endian is the
+        # plausible grams slot (a 3-6 kg cat fits 16 bits) but was all-zero in
+        # every captured frame -- no capture has yet shown a cat actually on the
+        # scale.  Surfaced so it can be pinned against a live entry; expect 0 g
+        # until then.
+        if working and not was_working:
+            weight = int.from_bytes(body[22:24], "big") if len(body) >= 24 else None
+            self.state["last_entry_weight"] = weight
+            self.state["last_entry_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
 
     def on_frame(self, frame: Frame) -> list[bytes]:
         """Local mode: keep the scooper online with the cloud's own replies."""

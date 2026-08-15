@@ -52,14 +52,16 @@ def test_state_payload_maps_bowl_grams():
 def test_litterbox_discovery_has_climate_and_weight():
     rec = _Record("34:94:54:9d:b9:8e", "litterbox", "scooper")
     names = {p["name"] for _, p in ha_mqtt.discovery_for(rec)}
-    assert {"Temperature", "Humidity", "Weight"} <= names
+    assert {"Temperature", "Humidity", "Cat weight", "Last entry"} <= names
 
 
-def test_state_payload_maps_litterbox_climate():
+def test_state_payload_maps_litterbox_climate_and_entry():
     rec = _Record("34:94:54:9d:b9:8e", "litterbox", "scooper",
-                  {"temperature": 28, "humidity": 70, "weight": 4200})
+                  {"temperature": 28, "humidity": 70,
+                   "last_entry_weight": 4200, "last_entry_at": "2026-08-15T14:00:00+02:00"})
     p = ha_mqtt.state_payload(rec)
-    assert p["temperature"] == 28 and p["humidity"] == 70 and p["weight"] == 4200
+    assert p["temperature"] == 28 and p["humidity"] == 70
+    assert p["last_entry_weight"] == 4200 and p["last_entry_at"].startswith("2026-08-15")
 
 
 def test_parse_command():

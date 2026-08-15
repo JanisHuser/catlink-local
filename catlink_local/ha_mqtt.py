@@ -255,13 +255,26 @@ def _litterbox_entities(mid: str, record: Any, dev: dict) -> list[tuple[str, dic
         (
             f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/weight/config",
             {
-                "name": "Weight",
+                "name": "Cat weight",
                 "unique_id": f"catlink_{mid}_weight",
                 "state_topic": st,
-                "value_template": "{{ value_json.weight }}",
+                "value_template": "{{ value_json.last_entry_weight }}",
                 "unit_of_measurement": "g",
                 "device_class": "weight",
                 "state_class": "measurement",
+                "availability_topic": av,
+                "device": dev,
+            },
+        ),
+        (
+            f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/last_entry/config",
+            {
+                "name": "Last entry",
+                "unique_id": f"catlink_{mid}_last_entry",
+                "state_topic": st,
+                "value_template": "{{ value_json.last_entry_at }}",
+                "device_class": "timestamp",
+                "icon": "mdi:cat",
                 "availability_topic": av,
                 "device": dev,
             },
@@ -295,7 +308,8 @@ def state_payload(record: Any) -> dict[str, Any]:
         "temperature": state.get("temperature"),
         "humidity": state.get("humidity"),
         "battery_percent": state.get("battery_percent"),
-        "weight": state.get("weight"),
+        "last_entry_weight": state.get("last_entry_weight"),
+        "last_entry_at": state.get("last_entry_at"),
         # common
         "device_type": record.device_type,
         "sub_type": record.sub_type,

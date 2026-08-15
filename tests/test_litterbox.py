@@ -56,10 +56,18 @@ def test_heartbeat_working():
     assert h.state["humidity"] == 67  # 0x43
 
 
-def test_heartbeat_reports_weight_field():
-    # Weight slot (unconfirmed) is surfaced; 0 in the capture (no cat on scale).
-    h = _decode(IDLE)
-    assert h.state["weight"] == 0
+def test_cat_entry_records_weight_and_time():
+    # Occupancy 0->1 is a cat-entry event: it stamps a time and a weight.
+    # The weight slot is unconfirmed, so it's 0 here (no cat on the scale), but
+    # the entry must still be recorded with a timestamp.
+    h = LitterBoxHandler(_S())
+    idle, _ = Frame.parse(bytes.fromhex(IDLE))
+    working, _ = Frame.parse(bytes.fromhex(WORKING))
+    h.on_frame(idle)
+    assert "last_entry_at" not in h.state  # no entry while idle
+    h.on_frame(working)
+    assert h.state["last_entry_weight"] == 0
+    assert "T" in h.state["last_entry_at"]  # ISO timestamp recorded
 
 
 def test_does_not_claim_feeder():

@@ -9,9 +9,11 @@
     first contact and on demand (a new `sync_time` command), matching the cloud.
   - **Litter box** state event (`0b03`): answered with the cloud's verified
     `0bff` reply instead of being dropped.
-- Litter box now exposes a **weight** sensor alongside temperature and humidity
-  (weight byte offset is a best-effort guess — all-zero in captures so far, so
-  verify against a live reading).
+- Litter box **cat-entry event**: the occupancy flag's rising edge is logged as
+  a cat entering, exposing the cat's **weight** and the **entry time** as HA
+  sensors (next to temperature and humidity). The weight byte offset is a
+  best-effort guess — all-zero in captures so far (no cat was on the scale), so
+  verify the value against a live entry; the timestamp is reliable.
 
 ## 0.3.0
 
