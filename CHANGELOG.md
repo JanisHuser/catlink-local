@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.4
+
+- Litter box now exposes a **diagnostics** section in Home Assistant (it had
+  none, unlike the feeder): battery is moved under the diagnostic category, and
+  two reverse-engineering aids are added — **Last event** (the `0b03` state
+  event's timestamp) and **Raw status** (the latest heartbeat hex). Both were
+  already decoded but never surfaced.
+
 ## 0.3.3
 
 - Capture the **full conversation of recognised devices**, both directions, to

@@ -55,6 +55,21 @@ def test_litterbox_discovery_has_climate_and_weight():
     assert {"Temperature", "Humidity", "Cat weight", "Last entry"} <= names
 
 
+def test_litterbox_discovery_has_diagnostics():
+    rec = _Record("34:94:54:9d:b9:8e", "litterbox", "scooper")
+    payloads = {p["name"]: p for _, p in ha_mqtt.discovery_for(rec)}
+    # A proper HA diagnostics section: battery + the RE aids.
+    for name in ("Battery", "Last event", "Raw status"):
+        assert payloads[name]["entity_category"] == "diagnostic"
+
+
+def test_state_payload_maps_litterbox_diagnostics():
+    rec = _Record("34:94:54:9d:b9:8e", "litterbox", "scooper",
+                  {"last_event_at": "2026-08-15T09:00:00+02:00", "last_status_hex": "0934"})
+    p = ha_mqtt.state_payload(rec)
+    assert p["last_event_at"].startswith("2026-08-15") and p["last_status_hex"] == "0934"
+
+
 def test_state_payload_maps_litterbox_climate_and_entry():
     rec = _Record("34:94:54:9d:b9:8e", "litterbox", "scooper",
                   {"temperature": 28, "humidity": 70,
