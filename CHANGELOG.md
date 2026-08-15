@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.1
+## 0.3.2
 
 - Decode more previously-unhandled frames captured from real devices:
   - **Feeder** pet-visit event (`0052`): a per-visit report (duration + count,
