@@ -103,6 +103,39 @@ def _feeder_entities(mid: str, record: Any, dev: dict) -> list[tuple[str, dict]]
             },
         )
     )
+    # Pet-visit event report (command 0x0052).  Units are unconfirmed (see
+    # feeder._parse_visit), so these stay diagnostic and unit-light on purpose.
+    out.append(
+        (
+            f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/visit_count/config",
+            {
+                "name": "Last visit count",
+                "unique_id": f"catlink_{mid}_visit_count",
+                "state_topic": st,
+                "value_template": "{{ value_json.last_visit_count }}",
+                "icon": "mdi:cat",
+                "entity_category": "diagnostic",
+                "availability_topic": av,
+                "device": dev,
+            },
+        )
+    )
+    out.append(
+        (
+            f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/visit_length/config",
+            {
+                "name": "Last visit length",
+                "unique_id": f"catlink_{mid}_visit_length",
+                "state_topic": st,
+                "value_template": "{{ value_json.last_visit_seconds }}",
+                "unit_of_measurement": "s",
+                "icon": "mdi:timer-outline",
+                "entity_category": "diagnostic",
+                "availability_topic": av,
+                "device": dev,
+            },
+        )
+    )
     out.append(
         (
             f"{DISCOVERY_PREFIX}/number/catlink_{mid}/portions/config",
@@ -219,6 +252,20 @@ def _litterbox_entities(mid: str, record: Any, dev: dict) -> list[tuple[str, dic
                 "device": dev,
             },
         ),
+        (
+            f"{DISCOVERY_PREFIX}/sensor/catlink_{mid}/weight/config",
+            {
+                "name": "Weight",
+                "unique_id": f"catlink_{mid}_weight",
+                "state_topic": st,
+                "value_template": "{{ value_json.weight }}",
+                "unit_of_measurement": "g",
+                "device_class": "weight",
+                "state_class": "measurement",
+                "availability_topic": av,
+                "device": dev,
+            },
+        ),
     ]
 
 
@@ -241,11 +288,14 @@ def state_payload(record: Any) -> dict[str, Any]:
         "bowl_grams": state.get("bowl_grams"),
         "active": bool(state.get("active")),
         "last_feed_portions": state.get("last_feed_portions"),
+        "last_visit_seconds": state.get("last_visit_seconds"),
+        "last_visit_count": state.get("last_visit_count"),
         # litterbox
         "working": bool(state.get("working")),
         "temperature": state.get("temperature"),
         "humidity": state.get("humidity"),
         "battery_percent": state.get("battery_percent"),
+        "weight": state.get("weight"),
         # common
         "device_type": record.device_type,
         "sub_type": record.sub_type,

@@ -42,6 +42,7 @@ CMD_STATUS = 0x0352
 CMD_TIME = 0x0452
 CMD_FEED = 0x0552
 CMD_FEED_REPORT = 0x0252
+CMD_VISIT = 0x0052  # periodic pet-visit event report (device -> server)
 
 # The server always answered with this sequence id in the capture.
 SERVER_SEQ = b"\x00\x01"

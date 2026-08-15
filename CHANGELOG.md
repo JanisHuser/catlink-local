@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1
+
+- Decode more previously-unhandled frames captured from real devices:
+  - **Feeder** pet-visit event (`0052`): a per-visit report (duration + count,
+    units unconfirmed) surfaced as HA diagnostic sensors; acked as before.
+  - **Litter box** clock push (`0dff`): local mode now pushes a time-sync on
+    first contact and on demand (a new `sync_time` command), matching the cloud.
+  - **Litter box** state event (`0b03`): answered with the cloud's verified
+    `0bff` reply instead of being dropped.
+- Litter box now exposes a **weight** sensor alongside temperature and humidity
+  (weight byte offset is a best-effort guess — all-zero in captures so far, so
+  verify against a live reading).
+
 ## 0.3.0
 
 - Capture **unhandled frames from recognised devices**. Previously only

@@ -2,7 +2,7 @@
 # Installed via the Add-on Store after adding this repo as a custom repository
 # (Settings -> Add-ons -> Add-on Store -> ⋮ -> Repositories).
 name: CATLINK Local
-version: "0.3.0"
+version: "0.3.1"
 slug: catlink_local
 description: >-
   Local DNS redirect + cloud proxy for CATLINK devices, exposed to Home

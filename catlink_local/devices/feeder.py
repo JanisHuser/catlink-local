@@ -23,6 +23,7 @@ from ..protocol import (
     CMD_FEED_REPORT,
     CMD_STATUS,
     CMD_TIME,
+    CMD_VISIT,
     MSG_QUERY,
     MSG_REPORT,
     SUB_FEEDER,
@@ -54,7 +55,9 @@ class FeederHandler(DeviceHandler):
 
     # Commands we decode/answer; anything else the feeder sends is captured as
     # "unhandled" (both directions reuse these ids for report+ack).
-    known_commands = frozenset({CMD_STATUS, CMD_TIME, CMD_FEED, CMD_FEED_REPORT})
+    known_commands = frozenset(
+        {CMD_STATUS, CMD_TIME, CMD_FEED, CMD_FEED_REPORT, CMD_VISIT}
+    )
 
     commands = [
         Command("feed", "Feed", args={"portions": "int"}),
@@ -81,6 +84,8 @@ class FeederHandler(DeviceHandler):
             self._parse_status(frame)
         elif frame.command == CMD_FEED_REPORT:
             self._parse_feed_report(frame)
+        elif frame.command == CMD_VISIT:
+            self._parse_visit(frame)
 
     def on_frame(self, frame: Frame) -> list[bytes]:
         self.observe(frame, "C→S")
@@ -121,6 +126,38 @@ class FeederHandler(DeviceHandler):
         portions = body[2] if len(body) > 2 else None
         self.state["last_feed_portions"] = portions
         self.state["last_feed_at"] = datetime.now().isoformat(timespec="seconds")
+
+    def _parse_visit(self, frame: Frame) -> None:
+        """Decode a pet-visit event report (command 0x0052).
+
+        These arrive in bursts clustered around the times the pet is at the
+        bowl/fountain -- several within a minute, then long quiet gaps -- so
+        each frame reads as one *visit*.  The body was constant-shape across all
+        359 captured frames::
+
+            body = 00 <a:2> <b:2> 00 00 00 00 02 ff ff ff
+
+        ``a`` (body[1:3], big-endian) ranged 1..301 and ``b`` (body[3:5]) 1..9;
+        the two are positively correlated (r=0.64 over the capture).  That fits
+        ``a`` being the visit *duration* (seconds is the plausible unit -- a few
+        seconds to ~5 min) and ``b`` a small per-visit count (feeding actions /
+        detections).  Units are unconfirmed, so both are surfaced raw and the
+        tail (constant ``…02 ff ff ff``) is kept in ``last_visit_hex`` for
+        further reverse engineering.  The server answers a visit with the plain
+        ack (``02 52 0052 0000``) -- verified against the capture, and already
+        emitted by ``on_frame`` for any report.
+        """
+        body = frame.body
+        if len(body) < 5:
+            return
+        self.state.update(
+            {
+                "last_visit_seconds": int.from_bytes(body[1:3], "big"),
+                "last_visit_count": int.from_bytes(body[3:5], "big"),
+                "last_visit_at": datetime.now().isoformat(timespec="seconds"),
+                "last_visit_hex": body.hex(),
+            }
+        )
 
     def _time_reply(self, frame: Frame) -> bytes:
         """Build the time-sync response.

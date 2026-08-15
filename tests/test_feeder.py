@@ -41,8 +41,32 @@ def test_feeder_claims_status_frame():
     assert FeederHandler.claim(frame) is True
 
 
+# Real pet-visit report (command 0x0052) from the .104 capture: a=0x0027=39, b=5.
+VISIT = "fc001998d5ac0bfbdeff0b0352005200002700050000000002fffffffe"
+
+
+def test_visit_report_decoded():
+    st = _decode(VISIT)
+    assert st["last_visit_seconds"] == 39
+    assert st["last_visit_count"] == 5
+    assert st["last_visit_hex"] == "00002700050000000002ffffff"
+
+
+def test_visit_report_is_known_now():
+    # It must no longer be logged as "unhandled", and the ack matches the cloud's
+    # verified reply (02 52 0052 0000).
+    h = FeederHandler(_FakeSession())
+    frame, _ = Frame.parse(bytes.fromhex(VISIT))
+    assert h.is_unhandled(frame) is False
+    replies = h.on_frame(frame)
+    assert len(replies) == 1
+    assert replies[0].hex() == "fc000e0001ac0bfbdeff0b0252005200007b"
+
+
 if __name__ == "__main__":
     test_bowl_grams_settled()
     test_bowl_grams_empty_and_feeding()
     test_feeder_claims_status_frame()
+    test_visit_report_decoded()
+    test_visit_report_is_known_now()
     print("all feeder tests passed")

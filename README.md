@@ -223,6 +223,9 @@ the incoming frames and set `self.sub_type`. See `feeder.py`'s
 | Keep-alive (acks) + time-sync | **Verified** — bytes match the cloud's replies |
 | Status value decoding | Partial — the changing byte is surfaced; full meaning TBD |
 | Feed command (`0552 00NN`) | **Plausible** — matches the observed pattern; test on hardware carefully |
+| Feeder visit event (`0052`) | Partial — duration + count surfaced; units unconfirmed |
+| Scooper clock push (`0dff`) + state event (`0b03`) | **Verified** — reply bytes match the cloud's |
+| Scooper cat weight | Guess — plausible byte offset, all-zero in captures; verify on hardware |
 
 When you run it against the real device, the live traffic view makes it easy
 to fill in the gaps.
