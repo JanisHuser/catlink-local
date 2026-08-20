@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 
 from . import registry, resolve
@@ -89,12 +90,18 @@ class ProxySession:
     def _identify(self, frame: Frame) -> None:
         self.mac = frame.mac
         self.mac_str = frame.mac_str
-        self.record = self.hub.get_or_create(self.mac_str, self.addr)
+        self.record = self.hub.attach(self.mac_str, self.addr)
         handler_cls = registry.find_handler(frame)
         if handler_cls is None:
             return
-        self.handler = handler_cls(self)
-        self.record.handler = self.handler
+        # A reconnect reuses the record's handler so the decoded state (bowl
+        # weight, last feed, ...) survives the device dropping its connection.
+        if type(self.record.handler) is handler_cls:
+            self.handler = self.record.handler
+            self.handler.session = self
+        else:
+            self.handler = handler_cls(self)
+            self.record.handler = self.handler
         self.record.device_type = self.handler.device_type
         self.is_unknown = self.handler.device_type == "unidentified"
         log.info("device %s -> %s handler (proxy)", self.mac_str, self.handler.device_type)
@@ -173,6 +180,7 @@ async def handle_proxy_connection(
     writer: asyncio.StreamWriter,
 ) -> None:
     session = ProxySession(hub, writer)
+    started = time.monotonic()
     upstream_ip = await resolve.resolve(endpoint.upstream_host, server=resolver)
     log.info(
         "device %s connected on :%d (proxy -> %s[%s]:%d)",
@@ -192,8 +200,13 @@ async def handle_proxy_connection(
         _pump(up_reader, writer, "S→C", session),
     )
     if session.mac_str:
-        hub.remove(session.mac_str)
-    log.info("device %s disconnected (proxy)", session.addr)
+        hub.detach(session.mac_str)
+    # The duration makes a reconnect loop obvious in the add-on log: a device
+    # that keeps closing after a few seconds is normal for CATLINK hardware and
+    # is why the hub waits out a grace period before reporting it offline.
+    log.info(
+        "device %s disconnected (proxy, %.0fs)", session.addr, time.monotonic() - started
+    )
 
 
 async def start_proxy_endpoints(

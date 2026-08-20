@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.5
+
+- **Devices no longer flap between available and unavailable in Home
+  Assistant.** CATLINK hardware doesn't hold one long-lived connection: it
+  drops and reconnects every few seconds, and it can hold several connections
+  at once. Every closed socket was reported as the device going away, so the
+  entities went unavailable and back again in a loop. The hub now counts the
+  live connections per device and only reports it gone once the last one has
+  been closed for 90 seconds without a reconnect.
+- A reconnect now **keeps the decoded state** (food in bowl, last feed, ...)
+  instead of starting from an empty handler, so the sensors no longer blank out
+  each time the device comes back.
+- The proxy's disconnect log line now includes how long the connection lasted,
+  which makes a reconnect loop visible in the add-on log.
+
 ## 0.3.4
 
 - Litter box now exposes a **diagnostics** section in Home Assistant (it had

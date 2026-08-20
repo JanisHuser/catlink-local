@@ -16,6 +16,13 @@ from typing import Any, TextIO
 
 log = logging.getLogger("catlink.capture")
 
+#: How long a device may stay gone before it is reported as disconnected.
+#: CATLINK devices don't hold one long-lived TCP connection -- they drop and
+#: reconnect every few seconds -- so announcing every close would make the HA
+#: entities flap between available and unavailable.  A device that comes back
+#: within this window never leaves the hub at all.
+OFFLINE_GRACE = 90.0
+
 
 class DeviceRecord:
     def __init__(self, mac: str, addr: str):
@@ -29,6 +36,12 @@ class DeviceRecord:
         self.packets_out = 0
         self.handler: Any = None  # DeviceHandler, set once identified
         self.capture_path: str | None = None  # set while auto-capturing unknowns
+        #: Live connections currently carrying this device (a device may hold
+        #: several at once, and reconnects overlap), so the record only goes
+        #: away once the last one is gone.
+        self.sessions = 0
+        #: When the last connection closed, while we wait out OFFLINE_GRACE.
+        self.disconnected_at: float | None = None
 
     def snapshot(self) -> dict[str, Any]:
         base = {
@@ -41,7 +54,7 @@ class DeviceRecord:
             "packets_in": self.packets_in,
             "packets_out": self.packets_out,
             "capture_path": self.capture_path,
-            "online": True,
+            "online": self.sessions > 0,
         }
         if self.handler is not None:
             base.update(self.handler.snapshot())
@@ -49,8 +62,14 @@ class DeviceRecord:
 
 
 class Hub:
-    def __init__(self, max_log: int = 500, capture_dir: Path | None = None):
+    def __init__(
+        self,
+        max_log: int = 500,
+        capture_dir: Path | None = None,
+        offline_grace: float = OFFLINE_GRACE,
+    ):
         self.devices: dict[str, DeviceRecord] = {}
+        self.offline_grace = offline_grace
         self._subscribers: set[asyncio.Queue] = set()
         self._log: list[dict[str, Any]] = []
         self._max_log = max_log
@@ -156,6 +175,47 @@ class Hub:
             self.devices[mac] = rec
             self.publish("device_connected", rec.snapshot())
         return rec
+
+    def attach(self, mac: str, addr: str) -> DeviceRecord:
+        """Register a new connection for ``mac`` and return its record.
+
+        Reuses the existing record (and its handler state) when the device is
+        already connected or is reconnecting inside the grace window.
+        """
+        rec = self.get_or_create(mac, addr)
+        rec.sessions += 1
+        rec.disconnected_at = None  # cancels a pending expiry
+        rec.addr = addr
+        return rec
+
+    def detach(self, mac: str) -> None:
+        """One connection for ``mac`` closed.
+
+        The device is only reported as disconnected once its last connection is
+        gone *and* it stays gone for ``offline_grace`` seconds -- otherwise the
+        constant reconnects would look like the device dropping off.
+        """
+        rec = self.devices.get(mac)
+        if rec is None:
+            return
+        rec.sessions = max(0, rec.sessions - 1)
+        if rec.sessions:
+            return  # another connection is still carrying this device
+        rec.disconnected_at = time.time()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self.remove(mac)  # no event loop (tests): drop straight away
+            return
+        loop.call_later(self.offline_grace, self._expire, mac, rec)
+
+    def _expire(self, mac: str, rec: DeviceRecord) -> None:
+        """Drop a device that never came back within the grace window."""
+        if self.devices.get(mac) is not rec:
+            return
+        if rec.sessions or rec.disconnected_at is None:
+            return  # reconnected in the meantime
+        self.remove(mac)
 
     def touch(self, rec: DeviceRecord) -> None:
         rec.last_seen = time.time()

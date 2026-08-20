@@ -57,13 +57,19 @@ class Session:
     def _identify(self, frame) -> None:
         self.mac = frame.mac
         self.mac_str = frame.mac_str
-        self.record = self.hub.get_or_create(self.mac_str, self.addr)
+        self.record = self.hub.attach(self.mac_str, self.addr)
         handler_cls = registry.find_handler(frame)
         if handler_cls is None:
             log.warning("no handler claimed device %s (%r)", self.mac_str, frame)
             return
-        self.handler = handler_cls(self)
-        self.record.handler = self.handler
+        # A reconnect reuses the record's handler so the decoded state (bowl
+        # weight, last feed, ...) survives the device dropping its connection.
+        if type(self.record.handler) is handler_cls:
+            self.handler = self.record.handler
+            self.handler.session = self
+        else:
+            self.handler = handler_cls(self)
+            self.record.handler = self.handler
         self.record.device_type = self.handler.device_type
         # An "unidentified" device is one only the generic fallback claimed;
         # log its traffic per-IP so it can be reverse-engineered later.
@@ -124,7 +130,7 @@ async def handle_connection(
     finally:
         writer.close()
         if session.mac_str:
-            hub.remove(session.mac_str)
+            hub.detach(session.mac_str)
         log.info("disconnected %s", session.addr)
 
 
